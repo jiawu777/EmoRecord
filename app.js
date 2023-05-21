@@ -16,26 +16,49 @@ const config = {
   channelId: process.env.CHANNEL_ID
 }
 
+const questions = [
+  '今天的心情如何?',
+  '請寫下今天的文字紀錄吧!',
+  '是否上傳圖片紀錄? Y / N'
+]
+
 const client = new line.Client(config);
 
 // connect mongoose
 (async () => {
   await mongodb.connect()
-})
+})()
 
 // set event
-function handleEvent(event) {
-  const message = {
-    type: 'text',
-    text: 'Hello World!'
-  }
-  // determine receive event type
+async function handleEvent(event) {
+  // const { questions } = require('./config/dialogue')
+  const userId = event.source.userId
+  const EmoRecord = require('./models/emo_records')
+
+  // check received event type
   if (event.type !== 'message' || event.message.type !== 'text') {
     message.text = '拍謝，看不懂';
   }
+  let record = await EmoRecord.findOne({ userId });
+  if (!record) {
+    record = new EmoRecord({ userId, questionIndex: 0 })
+  }
 
-  // reply message
-  return client.replyMessage(event.replyToken, message);
+  const replyToken = event.replyToken;
+  const questionIndex = record.questionIndex;
+  const userMessage = event.message.text;
+
+  if (questionIndex < questions.length) {
+    await client.replyMessage(replyToken, { type: 'text', text: questions[questionIndex] });
+    record.answer.push(userMessage)
+    record.questionIndex += 1;
+  } else {
+    await client.replyMessage(replyToken, { type: 'text', text: '所有問題已完成' });
+    record.questionIndex = 0;
+  }
+
+  await record.save();
+
 }
 
 // set webhook route
@@ -54,7 +77,6 @@ app.post('/webhook', line.middleware(config), (req, res) => {
   if (signInKey !== req.header('x-Line-Signature')) {
     return res.send(error);
   }
-
   return res.json(handleEvent(req.body.events[0]))
 });
 
