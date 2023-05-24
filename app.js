@@ -5,7 +5,9 @@ if (process.env.NODE_ENV !== 'production') {
 const express = require('express')
 const line = require('@line/bot-sdk');
 const crypto = require('crypto')
+const dayjs = require('dayjs')
 const mongodb = require('./config/mongoose')
+const fs = require('fs')
 
 const app = express()
 
@@ -19,7 +21,7 @@ const config = {
 const questions = [
   '今天的心情如何?',
   '請寫下今天的文字紀錄吧!',
-  '是否上傳圖片紀錄? Y / N'
+  '上傳圖片記錄吧!'
 ]
 
 const client = new line.Client(config);
@@ -36,12 +38,16 @@ async function handleEvent(event) {
   const EmoRecord = require('./models/emo_records')
 
   // check received event type
-  if (event.type !== 'message' || event.message.type !== 'text') {
+  if (event.type !== 'message' && event.message.type !== 'text' && event.message.type !== 'image') {
     message.text = '拍謝，看不懂';
   }
-  let record = await EmoRecord.findOne({ userId });
+
+  // find record with same date & user
+  const localDate = dayjs(Date.now(), 'YYYY-MM-DD')
+  let record = await EmoRecord.findOne({ userId, date: localDate.format().slice(0, 10) });
+
   if (!record) {
-    record = new EmoRecord({ userId, questionIndex: 0 })
+    record = new EmoRecord({ userId, questionIndex: 0, date: localDate.format().slice(0, 10) })
   }
 
   const replyToken = event.replyToken;
