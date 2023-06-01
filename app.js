@@ -4,11 +4,14 @@ if (process.env.NODE_ENV !== 'production') {
 
 const express = require('express')
 const line = require('@line/bot-sdk');
-const crypto = require('crypto')
+
 const dayjs = require('dayjs')
-const mongodb = require('./config/mongoose')
 const fs = require('fs')
 const axios = require('axios')
+
+const mongodb = require('./config/mongoose')
+const EmoRecord = require('./models/emo_records')
+const { authenticator } = require('./middleware/auth')
 
 const app = express()
 
@@ -38,27 +41,15 @@ function downloadImage(url) {
     headers: {
       'Authorization': `Bearer ${config.channelAccessToken}`
     },
-    // QQQQQQQQQQ??
+    // Q???
     responseType: 'arraybuffer'
   }).then((response) => response.data)
 }
 
-// // 上傳至 Imgur
-// function uploadToImgur(base64Data) {
-//   return axios.post('https://api.imgur.com/3/image', {
-//     image: base64Data,
-//     album: process.env.IMGUR_ALBUM_ID
-//   }, {
-//     headers: {
-//       'Authorization': `Client-ID ${process.env.IMGUR_CLIENT_ID}`
-//     }
-//   });
-// }
-
 // set event
 async function handleEvent(event) {
   const userId = event.source.userId
-  const EmoRecord = require('./models/emo_records')
+
 
   // check received event type
   if (event.type !== 'message' && event.message.type !== 'text' && event.message.type !== 'image') {
@@ -78,38 +69,40 @@ async function handleEvent(event) {
   const questionIndex = record.questionIndex;
   const userMessage = event.message.text;
 
+  // image 處理
+  if (event.message.type == 'image' && questionIndex <= questions.length) {
+    const imageId = event.message.id;
+    const downloadUrl = `https://api-data.line.me/v2/bot/message/${imageId}/content`;
+    return downloadImage(downloadUrl)
+      .then(async (imageData) => {
+        // 轉換為 Base64
+        const base64Data = imageData.toString('base64')
+        record.image = base64Data
+        await record.save();
+        if (questionIndex <= questions.length) {
+          // 已完成回傳答覆
+          await client.replyMessage(replyToken, { type: 'text', text: '所有問題包含圖片皆上傳完成' })
+        }
+      })
+      .catch((error) => {
+        console.error(error);
+      });
+  }
+
   // 本日未完成跑問題
   if (questionIndex < questions.length) {
+
+    // 向使用者提問
     await client.replyMessage(replyToken, { type: 'text', text: questions[questionIndex] });
 
-    // image 處理
-    if (event.message.type == 'image') {
-      const imageId = event.message.id;
-      const downloadUrl = `https://api-data.line.me/v2/bot/message/${imageId}/content`;
-      return downloadImage(downloadUrl)
-        .then(async (imageData) => {
-          // 轉換為 Base64
-          const base64Data = imageData.toString('base64')
-          record.image = base64Data
-          // record.save()
-          //  return uploadToImgur(base64Data)
-          // })
-          // .then((imgurResponse) => {
-          //   // 取得 Imgur 回應中的圖片連結
-          //   const imgUrl = imgurResponse.data.link;
-
-          //   console.log(imgUrl)
-          //   // 設定Imgur圖片連結至record
-          //   // return record.image = imgUrl
-        })
-        .catch((error) => {
-          console.error(error);
-        });
-    } else {
+    // 第一次呼叫不存入資料庫
+    if (record.questionIndex !== 0) {
       record.answer.push(userMessage)
     }
+
     record.questionIndex += 1;
-    await record.save();
+    await record.save()
+
   } else {
     // 已完成回傳答覆
     await client.replyMessage(replyToken, { type: 'text', text: '所有問題已完成' })
@@ -117,21 +110,7 @@ async function handleEvent(event) {
 }
 
 // set webhook route
-app.post('/webhook', line.middleware(config), (req, res) => {
-  let signInKey = '';
-  try {
-    // produce reference header
-    signInKey = crypto.createHmac('sha256', config.channelSecret).
-      update(Buffer.from(JSON.stringify(req.body)), 'utf8').digest('base64');
-  } catch (error) {
-    // error handle
-    console.log(error)
-  }
-
-  // compare if reference header is the same as line official header, if not, return error
-  if (signInKey !== req.header('x-Line-Signature')) {
-    return res.send(error);
-  }
+app.post('/webhook', line.middleware(config), authenticator, (req, res) => {
   return res.json(handleEvent(req.body.events[0]))
 });
 
