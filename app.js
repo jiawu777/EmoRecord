@@ -55,7 +55,7 @@ function downloadImage(url) {
 //   });
 // }
 
-// set record Today event
+// set event
 async function handleEvent(event) {
   const userId = event.source.userId
   const EmoRecord = require('./models/emo_records')
@@ -66,11 +66,11 @@ async function handleEvent(event) {
   }
 
   // find record with same date & user
-  const localDate = dayjs(Date.now(), 'YYYY-MM-DD')
-  let record = await EmoRecord.findOne({ userId, date: localDate.format().slice(0, 10) });
+  const localDate = dayjs(Date.now(), 'YYYY-MM-DD').format().slice(0, 10)
+  let record = await EmoRecord.findOne({ userId, date: localDate });
 
   if (!record) {
-    record = new EmoRecord({ userId, questionIndex: 0, date: localDate.format().slice(0, 10) })
+    record = new EmoRecord({ userId, questionIndex: 0, date: localDate })
   }
 
   // repeat questions
@@ -78,17 +78,20 @@ async function handleEvent(event) {
   const questionIndex = record.questionIndex;
   const userMessage = event.message.text;
 
+  // 本日未完成跑問題
   if (questionIndex < questions.length) {
     await client.replyMessage(replyToken, { type: 'text', text: questions[questionIndex] });
-    // image message handle
-    if (event.type == 'message' && event.message.type == 'image') {
+
+    // image 處理
+    if (event.message.type == 'image') {
       const imageId = event.message.id;
       const downloadUrl = `https://api-data.line.me/v2/bot/message/${imageId}/content`;
       return downloadImage(downloadUrl)
-        .then((imageData) => {
+        .then(async (imageData) => {
           // 轉換為 Base64
-          const base64Data = imageData.toString('base64').slice(0, 10)
-          console.log(base64Data)
+          const base64Data = imageData.toString('base64')
+          record.image = base64Data
+          // record.save()
           //  return uploadToImgur(base64Data)
           // })
           // .then((imgurResponse) => {
@@ -106,12 +109,11 @@ async function handleEvent(event) {
       record.answer.push(userMessage)
     }
     record.questionIndex += 1;
+    await record.save();
   } else {
-    await client.replyMessage(replyToken, { type: 'text', text: '所有問題已完成' });
-    record.questionIndex = 0;
+    // 已完成回傳答覆
+    await client.replyMessage(replyToken, { type: 'text', text: '所有問題已完成' })
   }
-
-  await record.save();
 }
 
 // set webhook route
