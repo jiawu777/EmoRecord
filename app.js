@@ -4,9 +4,9 @@ if (process.env.NODE_ENV !== 'production') {
 
 const express = require('express')
 const line = require('@line/bot-sdk');
+const { ImgurClient } = require('imgur')
 
 const dayjs = require('dayjs')
-const fs = require('fs')
 const axios = require('axios')
 
 const mongodb = require('./config/mongoose')
@@ -16,7 +16,7 @@ const { authenticator } = require('./middleware/auth')
 const app = express()
 
 const PORT = process.env.PORT
-const config = {
+const lineConfig = {
   channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
   channelSecret: process.env.CHANNEL_SECRET,
   channelId: process.env.CHANNEL_ID
@@ -28,7 +28,7 @@ const questions = [
   '上傳圖片記錄吧!'
 ]
 
-const client = new line.Client(config);
+const client = new line.Client(lineConfig);
 
 // connect mongoose
 (async () => {
@@ -39,11 +39,26 @@ const client = new line.Client(config);
 function downloadImage(url) {
   return axios.get(url, {
     headers: {
-      'Authorization': `Bearer ${config.channelAccessToken}`
+      'Authorization': `Bearer ${lineConfig.channelAccessToken}`
     },
     // Q???
     responseType: 'arraybuffer'
   }).then((response) => response.data)
+}
+
+// upload base64Data imgur
+async function uploadImgur(imgbase64) {
+  const client = new ImgurClient({
+    clientId: process.env.IMGUR_CLIENT_ID,
+    clientSecret: process.env.IMGUR_CLIENT_SECRET,
+    refreshToken: process.env.IMGUR_REFRESH_TOKEN,
+  });
+  const response = await client.upload({
+    image: imgbase64,
+    type: 'base64',
+    album: process.env.IMGUR_ALBUM_ID
+  });
+  return response.data.link;
 }
 
 // set event
@@ -77,10 +92,13 @@ async function handleEvent(event) {
       .then(async (imageData) => {
         // 轉換為 Base64
         const base64Data = imageData.toString('base64')
-        record.image = base64Data
+
+        // 上傳 imgur 並存取imgur url
+        record.image = (await uploadImgur(base64Data)).toString()
         await record.save();
+
+        // 已完成回傳答覆
         if (questionIndex <= questions.length) {
-          // 已完成回傳答覆
           await client.replyMessage(replyToken, { type: 'text', text: '所有問題包含圖片皆上傳完成' })
         }
       })
@@ -110,7 +128,7 @@ async function handleEvent(event) {
 }
 
 // set webhook route
-app.post('/webhook', line.middleware(config), authenticator, (req, res) => {
+app.post('/webhook', line.middleware(lineConfig), authenticator, (req, res) => {
   return res.json(handleEvent(req.body.events[0]))
 });
 
