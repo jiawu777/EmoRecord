@@ -23,12 +23,16 @@ const client = new line.Client(lineConfig);
   await mongodb.connect()
 })()
 
-
 function handleEvent(event) {
-  if (event.type === 'message' && (event.message.type === 'text' || event.message.type === 'image')) {
-    handleMessageEvent(event, client)
-  } else if (event.type === 'postback') {
-    console.log(event)
+  let state = event.postback.data
+  switch (state) {
+    case 'create':
+      handleMessageEvent(event, client)
+      break;
+
+    case 'update&delete':
+      // not done
+      handleMessageEvent(event, client)
   }
 
 }

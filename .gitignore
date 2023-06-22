@@ -7,3 +7,5 @@ Icon?
 node_modules
 *.log
 *.gz
+
+renew-richmenu.js
