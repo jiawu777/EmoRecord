@@ -5,7 +5,7 @@ const line = require('@line/bot-sdk');
 
 const mongodb = require('./config/mongoose')
 const { authenticator } = require('./middleware/auth')
-const { handleMessageEvent } = require('./controllers/record-controller')
+const { createRecord, readRecord } = require('./controllers/record-controller')
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -23,22 +23,32 @@ const client = new line.Client(lineConfig);
   await mongodb.connect()
 })()
 
-function handleEvent(event) {
-  let state = event.postback.data
-  switch (state) {
-    case 'create':
-      handleMessageEvent(event, client)
-      break;
+let status = ''
+async function handlePostbackEvent(event, client) {
+  try {
+    if (event.type === 'message') {
+      createRecord(event, client)
+    } else if (event.type === 'postback') {
+      const mode = event.postback.data.split('&')[0]
+      const act = event.postback.data.split('&')[1]
+      if (mode === 'userManual') {
+        status = act
+      }
+      if (status === 'create') {
+        createRecord(event, client)
+      } else if (status === 'read') {
+        readRecord(event, client)
+      }
+    }
 
-    case 'update&delete':
-      // not done
-      handleMessageEvent(event, client)
-  }
 
+  } catch (err) { console.log(err) }
 }
+
+
 // set webhook route
 app.post('/webhook', line.middleware(lineConfig), authenticator, (req, res) => {
-  return res.json(handleEvent(req.body.events[0], client))
+  return res.json(handlePostbackEvent(req.body.events[0], client))
 });
 
 app.listen(PORT, () => {
