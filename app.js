@@ -26,9 +26,9 @@ const client = new line.Client(lineConfig);
 let status = ''
 async function handlePostbackEvent(event, client) {
   try {
-    if (event.type === 'message') {
-      createRecord(event, client)
-    } else if (event.type === 'postback') {
+
+    // 使用者點擊RichMenu選項
+    if (event.type === 'postback') {
       const mode = event.postback.data.split('&')[0]
       const act = event.postback.data.split('&')[1]
       if (mode === 'userManual') {
@@ -40,8 +40,10 @@ async function handlePostbackEvent(event, client) {
         readRecord(event, client)
       }
     }
-
-
+    // 使用者回傳文字或圖片訊息
+    else if (event.type === 'message' && status !== 'read') {
+      createRecord(event, client)
+    }
   } catch (err) { console.log(err) }
 }
 
