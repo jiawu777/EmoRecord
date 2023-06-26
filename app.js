@@ -35,14 +35,13 @@ async function handlePostbackEvent(event, client) {
         status = act
       }
       if (status === 'create') {
-        createRecord(event, client)
-      } else if (status === 'read') {
-        readRecord(event, client)
+        await createRecord(event, client)
+      } else if (status === 'read' || status === 'pickDate') {
+        await readRecord(event, client)
       }
-    }
-    // 使用者回傳文字或圖片訊息
-    else if (event.type === 'message' && status !== 'read') {
-      createRecord(event, client)
+    } else if (event.type === 'message' && status !== 'read' && event.message.text !== '記錄今日') {
+      // 使用者回傳文字或圖片訊息
+      await createRecord(event, client)
     }
   } catch (err) { console.log(err) }
 }
