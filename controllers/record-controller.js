@@ -74,10 +74,9 @@ module.exports = {
         try {
             const userId = event.source.userId
             const replyToken = event.replyToken;
-            if (event.postback.data !== 'userManual&pickDate') {
+            if (event.postback.data.split('&')[1] !== 'pickDate') {
                 // set datetime picker
-                const message = datePicker
-                await client.replyMessage(replyToken, message)
+                await client.replyMessage(replyToken, datePicker.read)
             } else {
                 const selectedDate = event.postback.params.date
                 // find record with same date & user
@@ -85,7 +84,7 @@ module.exports = {
                 if (!selectRecord) {
                     await client.replyMessage(replyToken, { type: 'text', text: `查詢日期 ${selectedDate} 無紀錄` })
                 } else {
-                    const answers = selectRecord.answer.join('\n')
+                    let answers = selectRecord.answer.join('\n')
                     const images = selectRecord.image.join()
                     const replyImg = {
                         "type": "image",
