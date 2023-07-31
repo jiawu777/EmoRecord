@@ -2,70 +2,125 @@ const dayjs = require('dayjs')
 const EmoRecord = require('../models/emo-records')
 const [questions] = require('../config/dialogue')
 const { downloadImage, uploadImgur } = require('../helpers/image-helpers')
-const { datePicker, replyImg } = require('../utils/msgtemplates')
+const { datePicker } = require('../utils/msgtemplates')
 
 
 module.exports = {
-    createRecord: async function (event, client) {
+    createAndEditRecord: async function (event, client,) {
         try {
             const userId = event.source.userId
-            // 為什麼localDate呼叫helpers失敗，必須要放在這邊才行？
-            const localDate = dayjs(Date.now(), 'YYYY-MM-DD').format().slice(0, 10)
-            // find record with same date & user
-            let record = await EmoRecord.findOne({ userId, date: localDate });
-            if (!record) {
-                record = new EmoRecord({ userId, questionIndex: 0, date: localDate })
-            }
-            // repeat questions
             const replyToken = event.replyToken;
-            const questionIndex = record.questionIndex;
 
-            if (event.type === 'message') {
+            // find record with same user & status true (opened)
+            let record = await EmoRecord.findOne({ userId, status: true });
 
-                // image 處理
-                if (event.message.type == 'image' && questionIndex <= questions.length) {
-                    const imageId = event.message.id;
-                    const downloadUrl = `https://api-data.line.me/v2/bot/message/${imageId}/content`;
-                    return downloadImage(downloadUrl)
-                        .then(async (imageData) => {
-                            // 轉換為 Base64
-                            const base64Data = imageData.toString('base64')
-
-                            // 上傳 imgur 並存取imgur url
-                            const imgurl = await uploadImgur(base64Data)
-                            record.image.push(imgurl)
-
-                            if (record !== null) await record.save();
+            // pick date
+            let selectedDate = ""
+            if (event.type === 'postback' && event.postback.data.split('&')[1] === 'userClick') {
+                // set datetime picker
+                await client.replyMessage(replyToken, datePicker.new)
+            } else if (event.type === 'postback' && event.postback.data.split('&')[1] === 'pickDate') {
+                // update selected date 
+                selectedDate = event.postback.params.date
+            }
 
 
-                            // 已完成回傳答覆
-                            if (questionIndex <= questions.length) {
-                                await client.replyMessage(replyToken, { type: 'text', text: '所有問題包含圖片皆上傳完成' })
-                            }
-                        })
-                        .catch((error) => {
-                            console.error(error);
-                        });
+
+            // if user don't want to edit existing record
+            if (event.type === 'message' && event.message.text === '否') {
+                record.status = false
+                await record.save()
+                // confirm not update when record exist & quit
+                return await client.replyMessage(replyToken, { type: 'text', text: `取消更新 ${record.date} 紀錄` })
+            } else if (event.type === 'message' && event.message.text === '是') {
+                // reset record
+                selectedDate = record.date
+                await record.deleteOne()
+                record = new EmoRecord({ userId, questionIndex: 0, date: selectedDate, status: true })
+                await record.save()
+            }
+
+
+            // if none of record status is true
+            if (!record) {
+                // see if there is a record on selected date
+                record = await EmoRecord.findOne({ userId, date: selectedDate })
+
+                if (event.type === 'postback' && event.postback.data.split('&')[1] === 'pickDate') {
+                    if (record) {
+                        record.status = true
+                        await record.save()
+                        await client.replyMessage(replyToken, { type: 'text', text: `${selectedDate} 已有紀錄，是否更新？` })
+                    } else {
+                        // if there's none record on selected date, create new
+                        record = new EmoRecord({ userId, questionIndex: 0, date: selectedDate, status: true })
+                        await record.save()
+                    }
                 }
             }
-            // 本日未完成跑問題
-            if (questionIndex < questions.length) {
 
-                // 向使用者提問
-                await client.replyMessage(replyToken, { type: 'text', text: questions[questionIndex] });
 
-                // 第一次呼叫不存入資料庫
-                if (record.questionIndex !== 0 && event.type !== 'postback') {
-                    record.answer.push(event.message.text)
+            record = await EmoRecord.findOne({ userId, status: true })
+            if (record) {
+
+
+                // repeat questions
+                let questionIndex = record.questionIndex
+
+                if (event.type === 'message') {
+                    // image 處理
+                    if (event.message.type == 'image') {
+                        const imageId = event.message.id;
+                        const downloadUrl = `https://api-data.line.me/v2/bot/message/${imageId}/content`;
+                        return downloadImage(downloadUrl)
+                            .then(async (imageData) => {
+                                // 轉換為 Base64
+                                const base64Data = imageData.toString('base64')
+
+                                // 上傳 imgur 並存取imgur url
+                                const imgurl = await uploadImgur(base64Data)
+                                record.answer.image.push(imgurl)
+
+                                if (record !== null) {
+                                    record.status = false
+                                    if (record.questionIndex === questions.length) record.questionIndex = 0
+                                    await record.save()
+                                };
+
+                                // 已完成回傳答覆
+                                if (questionIndex <= questions.length) {
+                                    if (record.questionIndex === questions.length) record.questionIndex = 0
+                                    await client.replyMessage(replyToken, { type: 'text', text: '所有問題包含圖片皆上傳完成' })
+                                }
+                            })
+                            .catch((error) => {
+                                console.error(error);
+                            });
+                    }
                 }
-                if (record !== null) {
-                    record.questionIndex += 1
-                    await record.save()
-                };
+                // 本日未完成跑問題
+                if (questionIndex < questions.length) {
 
-            } else if (event.type !== 'message') {
-                // 已完成回傳答覆
-                await client.replyMessage(replyToken, { type: 'text', text: '所有問題已完成' })
+                    // 向使用者提問
+                    await client.replyMessage(replyToken, { type: 'text', text: questions[questionIndex] });
+
+                    // 第一次呼叫不存入資料庫
+                    if (record.questionIndex !== 0 && event.type === 'message') {
+                        record.answer.text.push(event.message.text)
+                    }
+                    if (record !== null) {
+                        record.questionIndex += 1
+                        await record.save()
+                    };
+
+                } else if (record && record.status !== false) {
+                    // turn record status to false restrict editing
+                    record.status = false
+                    if (record.questionIndex === questions.length) record.questionIndex = 0
+                    record.save()
+                    // 已完成回傳答覆
+                    await client.replyMessage(replyToken, { type: 'text', text: '所有問題已完成' })
+                }
             }
 
         } catch (err) { console.log(err) }
@@ -84,8 +139,8 @@ module.exports = {
                 if (!selectRecord) {
                     await client.replyMessage(replyToken, { type: 'text', text: `查詢日期 ${selectedDate} 無紀錄` })
                 } else {
-                    let answers = selectRecord.answer.join('\n')
-                    const images = selectRecord.image.join()
+                    let answers = selectRecord.answer.text.join('\n')
+                    const images = selectRecord.answer.image.join()
                     const replyImg = {
                         "type": "image",
                         "originalContentUrl": images,

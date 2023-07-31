@@ -140,10 +140,33 @@ const datePicker = {
             ]
         }
     }
+}
 
+const quickReplyYN = {
+
+    "type": "text",
+    "text": "該日期已有紀錄，是否更新？",
+    "quickReply": {
+        "items": [
+            {
+                "type": "action",
+                "action": {
+                    "type": "message",
+                    "label": "是，確認更新資料",
+                    "text": "是，確認更新資料"
+                }
+            },
+            {
+                "type": "action",
+                "action": {
+                    "type": "message",
+                    "label": "否，取消更新資料",
+                    "text": "否，取消更新資料"
+                }
+            }
+        ]
+    }
 
 }
 
-
-
-module.exports = { richmenu, datePicker }
+module.exports = { richmenu, datePicker, quickReplyYN }
