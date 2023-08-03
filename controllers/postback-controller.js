@@ -1,5 +1,4 @@
 const { createAndEditRecord, readRecord, deleteRecord } = require('./record-controller')
-const { datePicker } = require('../utils/msgtemplates')
 module.exports = {
     handlePostbackEvent: async function (event, client) {
         try {
