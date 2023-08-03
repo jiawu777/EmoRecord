@@ -1,6 +1,6 @@
 const dayjs = require('dayjs')
 const EmoRecord = require('../models/emo-records')
-const [questions] = require('../config/dialogue')
+const [questions, status] = require('../config/dialogue')
 const { downloadImage, uploadImgur } = require('../helpers/image-helpers')
 const { datePicker } = require('../utils/msgtemplates')
 
@@ -12,7 +12,8 @@ module.exports = {
             const replyToken = event.replyToken;
 
             // find record with same user & status true (opened)
-            let record = await EmoRecord.findOne({ userId, status: true });
+            // status details are in dialogue
+            let record = await EmoRecord.findOne({ userId, status: status.CreateAndUpdate[1] });
 
             // pick date
             let selectedDate = ""
@@ -28,7 +29,7 @@ module.exports = {
 
             // if user don't want to edit existing record
             if (event.type === 'message' && event.message.text === '否') {
-                record.status = false
+                record.status = status.CreateAndUpdate[0]
                 await record.save()
                 // confirm not update when record exist & quit
                 return await client.replyMessage(replyToken, { type: 'text', text: `取消更新 ${record.date} 紀錄` })
@@ -36,7 +37,7 @@ module.exports = {
                 // reset record
                 selectedDate = record.date
                 await record.deleteOne()
-                record = new EmoRecord({ userId, questionIndex: 0, date: selectedDate, status: true })
+                record = new EmoRecord({ userId, questionIndex: 0, date: selectedDate, status: status.CreateAndUpdate[1] })
                 await record.save()
             }
 
@@ -48,19 +49,19 @@ module.exports = {
 
                 if (event.type === 'postback' && event.postback.data.split('&')[1] === 'pickDate') {
                     if (record) {
-                        record.status = true
+                        record.status = status.CreateAndUpdate[1]
                         await record.save()
                         await client.replyMessage(replyToken, { type: 'text', text: `${selectedDate} 已有紀錄，是否更新？` })
                     } else {
                         // if there's none record on selected date, create new
-                        record = new EmoRecord({ userId, questionIndex: 0, date: selectedDate, status: true })
+                        record = new EmoRecord({ userId, questionIndex: 0, date: selectedDate, status: status.CreateAndUpdate[1] })
                         await record.save()
                     }
                 }
             }
 
 
-            record = await EmoRecord.findOne({ userId, status: true })
+            record = await EmoRecord.findOne({ userId, status: status.CreateAndUpdate[1] })
             if (record) {
 
 
@@ -82,7 +83,7 @@ module.exports = {
                                 record.answer.image.push(imgurl)
 
                                 if (record !== null) {
-                                    record.status = false
+                                    record.status = status.CreateAndUpdate[0]
                                     if (record.questionIndex === questions.length) record.questionIndex = 0
                                     await record.save()
                                 };
@@ -113,9 +114,9 @@ module.exports = {
                         await record.save()
                     };
 
-                } else if (record && record.status !== false) {
+                } else if (record && record.status !== status.CreateAndUpdate[0]) {
                     // turn record status to false restrict editing
-                    record.status = false
+                    record.status = status.CreateAndUpdate[0]
                     if (record.questionIndex === questions.length) record.questionIndex = 0
                     record.save()
                     // 已完成回傳答覆
@@ -152,6 +153,40 @@ module.exports = {
                         text: `${selectRecord.date}\n${answers}
                 ` }, replyImg])
                 }
+            }
+        } catch (err) { console.log(err) }
+    },
+    deleteRecord: async function (event, client) {
+        try {
+            const userId = event.source.userId
+            const replyToken = event.replyToken;
+            const record = EmoRecord.findOne({ userId, status: status.Delete[1] })
+
+            if (event.type === 'postback') {
+                if (event.postback.data.split('&')[1] !== 'pickDate') {
+                    // set datetime picker
+                    await client.replyMessage(replyToken, datePicker.delete)
+                } else {
+                    const selectedDate = event.postback.params.date
+                    // find record with same date & user
+                    let selectRecord = await EmoRecord.findOne({ userId, date: selectedDate });
+                    if (!selectRecord) {
+                        await client.replyMessage(replyToken, { type: 'text', text: `查詢日期 ${selectedDate} 無紀錄` })
+                    } else {
+                        selectRecord.status = status.Delete[1]
+                        selectRecord.save()
+                        await client.replyMessage(replyToken, { type: 'text', text: `是否確認刪除 ${selectedDate} 紀錄？` })
+                    }
+                }
+            } else if (event.type === 'message' && event.message.text === `取消`) {
+                // cancel deleting record
+                record.status = status.Delete[0]
+                await record.updateOne()
+                return await client.replyMessage(replyToken, { type: 'text', text: `取消刪除紀錄` })
+            } else if (event.type === 'message' && event.message.text === `確認`) {
+                // confirm deleting record
+                await client.replyMessage(replyToken, { type: 'text', text: `成功刪除紀錄` })
+                return await record.deleteOne()
             }
         } catch (err) { console.log(err) }
     }

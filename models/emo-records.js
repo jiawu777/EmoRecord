@@ -5,7 +5,7 @@ const emoSchema = new mongoose.Schema({
     answer: { text: [String], image: [String] },
     date: { type: String, required: true },
     questionIndex: { type: Number },
-    status: { type: Boolean, required: true }
+    status: { type: String, required: true }
 }, { timestamps: true })
 
 module.exports = mongoose.model('EmoRecord', emoSchema)

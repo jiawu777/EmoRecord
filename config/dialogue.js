@@ -4,4 +4,10 @@ const questions = [
   '上傳圖片記錄吧!'
 ]
 
-module.exports = [questions]
+
+const status = {
+  CreateAndUpdate: ['CUoff', 'CUon'],
+  Read: ['roff', 'ron'],
+  Delete: ['doff', 'don']
+}
+module.exports = [questions, status]

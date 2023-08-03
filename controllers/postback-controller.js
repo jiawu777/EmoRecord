@@ -14,6 +14,8 @@ module.exports = {
                 } else if (mode === 'delete') {
                     await deleteRecord(event, client)
                 }
+            } else if (event.type === 'message' && (event.message.text === '取消' || event.message.text === '確認')) {
+                await deleteRecord(event, client)
             } else if (event.type === 'message' && event.message.text !== 'NewRecord') {
                 await createAndEditRecord(event, client)
             }
