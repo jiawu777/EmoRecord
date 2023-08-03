@@ -148,10 +148,19 @@ module.exports = {
                         "previewImageUrl": images,
                         "animated": true
                     }
-                    await client.replyMessage(replyToken, [{
-                        type: 'text',
-                        text: `${selectRecord.date}\n${answers}
-                ` }, replyImg])
+
+                    if (images) {
+                        await client.replyMessage(replyToken, [{
+                            type: 'text',
+                            text: `${selectRecord.date}\n${answers}
+                    ` }, replyImg])
+                    } else {
+                        await client.replyMessage(replyToken, {
+                            type: 'text',
+                            text: `${selectRecord.date}\n${answers}
+                    ` })
+                    }
+
                 }
             }
         } catch (err) { console.log(err) }
