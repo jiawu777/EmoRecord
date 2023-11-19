@@ -1,8 +1,7 @@
-const dayjs = require('dayjs')
 const EmoRecord = require('../models/emo-records')
-const [questions, status] = require('../config/dialogue')
+// const [questions, status] = require('../config/dialogue')
 const { downloadImage, uploadImgur } = require('../helpers/image-helpers')
-const { datePicker } = require('../utils/msgtemplates')
+const { datePicker, quickReplyUpdate, quickReplyDelete, questions, status } = require('../utils/msgtemplates')
 
 
 module.exports = {
@@ -184,17 +183,17 @@ module.exports = {
                     } else {
                         selectRecord.status = status.Delete[1]
                         selectRecord.save()
-                        await client.replyMessage(replyToken, { type: 'text', text: `是否確認刪除 ${selectedDate} 紀錄？` })
+                        await client.replyMessage(replyToken, [{ type: 'text', text: ` 選擇紀錄日期為 ${selectedDate} ` }, quickReplyDelete])
                     }
                 }
-            } else if (event.type === 'message' && event.message.text === `取消`) {
+            } else if (event.type === 'message' && event.message.text === status.Delete[3]) {
                 // cancel deleting record
                 record.status = status.Delete[0]
                 await record.updateOne()
-                return await client.replyMessage(replyToken, { type: 'text', text: `取消刪除紀錄` })
-            } else if (event.type === 'message' && event.message.text === `確認`) {
+                return await client.replyMessage(replyToken, { type: 'text', text: status.Delete[3] })
+            } else if (event.type === 'message' && event.message.text === status.Delete[2]) {
                 // confirm deleting record
-                await client.replyMessage(replyToken, { type: 'text', text: `成功刪除紀錄` })
+                await client.replyMessage(replyToken, { type: 'text', text: status.Delete[2] })
                 return await record.deleteOne()
             }
         } catch (err) { console.log(err) }

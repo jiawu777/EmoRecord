@@ -12,9 +12,9 @@ const PORT = process.env.PORT || 3000
 
 // line client 設定
 const lineConfig = {
-  channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
-  channelSecret: process.env.CHANNEL_SECRET,
-  channelId: process.env.CHANNEL_ID
+  channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN || CHANNEL_ACCESS_TOKEN,
+    channelSecret: process.env.CHANNEL_SECRET || CHANNEL_SECRET,
+    channelId: process.env.CHANNEL_ID || CHANNEL_ID
 }
 const client = new line.Client(lineConfig);
 

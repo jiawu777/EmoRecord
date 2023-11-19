@@ -8,6 +8,6 @@ const questions = [
 const status = {
   CreateAndUpdate: ['CUoff', 'CUon'],
   Read: ['roff', 'ron'],
-  Delete: ['doff', 'don']
+  Delete: ['doff', 'don', 'deleteConfirm', 'deleteCancel']
 }
 module.exports = [questions, status]

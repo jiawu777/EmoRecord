@@ -1,4 +1,17 @@
 const { localDate } = require('../helpers/local-date')
+
+const questions = [
+    '今天的心情如何?',
+    '請寫下今天的文字紀錄吧!',
+    '上傳圖片記錄吧!'
+]
+
+const status = {
+    CreateAndUpdate: ['CUoff', 'CUon', '確認更新紀錄', '取消更新紀錄', '該日期已有紀錄，是否更新？'],
+    Read: ['roff', 'ron'],
+    Delete: ['doff', 'don', '確認刪除紀錄', '取消刪除紀錄', '是否確認刪除紀錄？']
+}
+
 const richmenu = {
     "size": {
         "width": 2500,
@@ -142,26 +155,26 @@ const datePicker = {
     }
 }
 
-const quickReplyYN = {
+const quickReplyUpdate = {
 
     "type": "text",
-    "text": "該日期已有紀錄，是否更新？",
+    "text": status.CreateAndUpdate[4],
     "quickReply": {
         "items": [
             {
                 "type": "action",
                 "action": {
                     "type": "message",
-                    "label": "是，確認更新資料",
-                    "text": "是，確認更新資料"
+                    "label": status.CreateAndUpdate[2],
+                    "text": status.CreateAndUpdate[2]
                 }
             },
             {
                 "type": "action",
                 "action": {
                     "type": "message",
-                    "label": "否，取消更新資料",
-                    "text": "否，取消更新資料"
+                    "label": status.CreateAndUpdate[3],
+                    "text": status.CreateAndUpdate[3]
                 }
             }
         ]
@@ -169,4 +182,31 @@ const quickReplyYN = {
 
 }
 
-module.exports = { richmenu, datePicker, quickReplyYN }
+const quickReplyDelete = {
+
+    "type": "text",
+    "text": status.Delete[4],
+    "quickReply": {
+        "items": [
+            {
+                "type": "action",
+                "action": {
+                    "type": "message",
+                    "label": status.Delete[2],
+                    "text": status.Delete[2]
+                }
+            },
+            {
+                "type": "action",
+                "action": {
+                    "type": "message",
+                    "label": status.Delete[3],
+                    "text": status.Delete[3]
+                }
+            }
+        ]
+    }
+
+}
+
+module.exports = { richmenu, datePicker, quickReplyUpdate, quickReplyDelete, questions, status }
