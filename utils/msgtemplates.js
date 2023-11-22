@@ -7,10 +7,12 @@ const questions = [
 ]
 
 const status = {
-    CreateAndUpdate: ['CUoff', 'CUon', '確認更新紀錄', '取消更新紀錄', '該日期已有紀錄，是否更新？'],
+    Create: ['Coff', 'Con'],
     Read: ['roff', 'ron'],
+    Update: ['Uoff', 'Uon', '確認更新紀錄', '取消更新紀錄', '是否更新資料？'],
     Delete: ['doff', 'don', '確認刪除紀錄', '取消刪除紀錄', '是否確認刪除紀錄？']
 }
+
 
 const richmenu = {
     "size": {
@@ -158,23 +160,23 @@ const datePicker = {
 const quickReplyUpdate = {
 
     "type": "text",
-    "text": status.CreateAndUpdate[4],
+    "text": status.Update[4],
     "quickReply": {
         "items": [
             {
                 "type": "action",
                 "action": {
                     "type": "message",
-                    "label": status.CreateAndUpdate[2],
-                    "text": status.CreateAndUpdate[2]
+                    "label": status.Update[2],
+                    "text": status.Update[2]
                 }
             },
             {
                 "type": "action",
                 "action": {
                     "type": "message",
-                    "label": status.CreateAndUpdate[3],
-                    "text": status.CreateAndUpdate[3]
+                    "label": status.Update[3],
+                    "text": status.Update[3]
                 }
             }
         ]
