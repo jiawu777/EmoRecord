@@ -1,5 +1,5 @@
 const EmoRecord = require('../models/emo-records')
-const { inputAnswers, outputQuestions } = require('./message-controller')
+const { inputData } = require('../helpers/input-data')
 const { datePicker, quickReplyUpdate, quickReplyDelete, status } = require('../utils/msgtemplates')
 const { pickDate } = require('../helpers/pick-date')
 
@@ -10,24 +10,26 @@ module.exports = {
             const userId = event.source.userId
             const replyToken = event.replyToken;
             const pickedDateNew = await pickDate(event, client)
+            let record = ""
             // 查詢指定日期紀錄 find record with same date & user
-            let record = await EmoRecord.findOne({ userId, date: pickedDateNew });
+            record = await EmoRecord.findOne({ userId, date: pickedDateNew });
 
             if (!record) {
+
+                // 若因無指定日期故查無紀錄，返回。 if no picked date info, return
+                if (!pickedDateNew) return
+
                 // 若查詢日期無紀錄，則新增紀錄。 if record does not exist, create a new one
                 record = new EmoRecord({ userId, questionIndex: 0, date: pickedDateNew, status: status.Create[1] })
-                console.log('＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝沒有紀錄新建＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝')
                 await record.save()
             } else {
                 // 若查詢日期有紀錄，詢問使用者是否更新紀錄。 if record exist, ask if user want to update or not
                 // 欲更新紀錄，轉到updateRecord函式 if yes, turn to update function
-                console.log('＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝有紀錄＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝')
                 await client.replyMessage(replyToken, [{ type: 'text', text: `${pickedDateNew}已有紀錄` }, quickReplyUpdate])
             }
 
-            console.log(record)
-            // // await outputQuestions(record, client, replyToken)
-            // // if (event.type === 'message' && event.message) { await inputAnswers(event, record) }
+            // 問答紀錄
+            // await inputData(event, client, record)
 
         } catch (err) { console.log(err) }
     },
