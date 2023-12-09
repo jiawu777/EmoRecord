@@ -1,44 +1,33 @@
 const EmoRecord = require('../models/emo-records')
 const { inputAnswers, outputQuestions } = require('./message-controller')
 const { datePicker, quickReplyUpdate, quickReplyDelete, status } = require('../utils/msgtemplates')
+const { pickDate } = require('../helpers/pick-date')
 
 
 module.exports = {
-    createRecord: async function (event, client,) {
+    createRecord: async function (event, client) {
         try {
             const userId = event.source.userId
             const replyToken = event.replyToken;
-            let record = ""
+            const pickedDateNew = await pickDate(event, client)
+            // 查詢指定日期紀錄 find record with same date & user
+            let record = await EmoRecord.findOne({ userId, date: pickedDateNew });
 
-
-            async function pickDate(event) {
-                // pick date
-                if (event.type === 'postback' && event.postback.data.split('&')[1] !== 'pickDate') {
-                    // set datetime picker
-                    await client.replyMessage(replyToken, datePicker.new)
-                } else {
-                    return event.postback.params.date
-                }
+            if (!record) {
+                // 若查詢日期無紀錄，則新增紀錄。 if record does not exist, create a new one
+                record = new EmoRecord({ userId, questionIndex: 0, date: pickedDateNew, status: status.Create[1] })
+                console.log('＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝沒有紀錄新建＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝')
+                await record.save()
+            } else {
+                // 若查詢日期有紀錄，詢問使用者是否更新紀錄。 if record exist, ask if user want to update or not
+                // 欲更新紀錄，轉到updateRecord函式 if yes, turn to update function
+                console.log('＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝有紀錄＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝')
+                await client.replyMessage(replyToken, [{ type: 'text', text: `${pickedDateNew}已有紀錄` }, quickReplyUpdate])
             }
-            let selectedDate = pickDate(event)
 
-            console.log(selectedDate)
-            //         // find record with same date & user
-            //         record = await EmoRecord.findOne({ userId, date: selectedDate });
-
-            //         if (!record) {
-            //             // if record does not exist, create a new one
-            //             record = new EmoRecord({ userId, questionIndex: 0, date: selectedDate, status: status.Create[1] })
-            //             await record.save()
-            //         } else {
-            //             // if record exist, ask if user want to update or not
-            //             // if yes, turn to update function
-            //             await client.replyMessage(replyToken, [{ type: 'text', text: `${selectedDate}已有紀錄` }, quickReplyUpdate])
-            //         }
-
-
-            //         await outputQuestions(record, client, replyToken)
-            //         if (event.type === 'message' && event.message) { await inputAnswers(event, record) }
+            console.log(record)
+            // // await outputQuestions(record, client, replyToken)
+            // // if (event.type === 'message' && event.message) { await inputAnswers(event, record) }
 
         } catch (err) { console.log(err) }
     },

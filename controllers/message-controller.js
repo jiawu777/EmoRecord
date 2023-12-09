@@ -29,8 +29,8 @@ module.exports = {
             } else {
                 await client.replyMessage(replyToken, { type: 'text', text: '所有問題已完成' })
             }
-        } catch (error) {
-            console.error(error)
+        } catch (er) {
+            console.log(err)
         }
     },
     inputAnswers: async function (event, record) {
@@ -70,8 +70,8 @@ module.exports = {
                     await record.save()
                 }
             }
-        } catch (error) {
-            console.error(error)
+        } catch (err) {
+            console.log(err)
         }
     }
 
