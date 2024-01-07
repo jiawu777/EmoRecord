@@ -6,13 +6,12 @@ const questions = [
     '上傳圖片記錄吧!'
 ]
 
-const status = {
-    Create: ['Coff', 'Con'],
-    Read: ['roff', 'ron'],
-    Update: ['Uoff', 'Uon', '確認更新紀錄', '取消更新紀錄', '是否更新資料？'],
-    Delete: ['doff', 'don', '確認刪除紀錄', '取消刪除紀錄', '是否確認刪除紀錄？']
-}
+const status = ['readonly', 'editable']
 
+const warnings = {
+    Update: ['取消更新紀錄', '確認更新紀錄', '是否更新資料？'],
+    Delete: ['取消刪除紀錄', '確認刪除紀錄', '是否確認刪除紀錄？']
+}
 
 const richmenu = {
     "size": {
@@ -32,7 +31,7 @@ const richmenu = {
             },
             "action": {
                 "type": "postback",
-                "text": "NewRecord",
+                "text": "新增紀錄",
                 "data": "new&userClick"
             }
         },
@@ -45,7 +44,7 @@ const richmenu = {
             },
             "action": {
                 "type": "postback",
-                "text": "DeleteRecord",
+                "text": "刪除紀錄",
                 "data": "delete&userClick"
             }
         },
@@ -58,7 +57,7 @@ const richmenu = {
             },
             "action": {
                 "type": "postback",
-                "text": "ReadRecord",
+                "text": "查詢紀錄",
                 "data": "read&userClick"
             }
         },
@@ -71,8 +70,8 @@ const richmenu = {
             },
             "action": {
                 "type": "postback",
-                "text": "EditRecord",
-                "data": "edit&userClick"
+                "text": "修改紀錄",
+                "data": "update&userClick"
             }
         }
     ]
@@ -160,23 +159,23 @@ const datePicker = {
 const quickReplyUpdate = {
 
     "type": "text",
-    "text": status.Update[4],
+    "text": warnings.Update[2],
     "quickReply": {
         "items": [
             {
                 "type": "action",
                 "action": {
                     "type": "message",
-                    "label": status.Update[2],
-                    "text": status.Update[2]
+                    "label": warnings.Update[1],
+                    "text": warnings.Update[1]
                 }
             },
             {
                 "type": "action",
                 "action": {
                     "type": "message",
-                    "label": status.Update[3],
-                    "text": status.Update[3]
+                    "label": warnings.Update[0],
+                    "text": warnings.Update[0]
                 }
             }
         ]
@@ -187,23 +186,23 @@ const quickReplyUpdate = {
 const quickReplyDelete = {
 
     "type": "text",
-    "text": status.Delete[4],
+    "text": warnings.Delete[2],
     "quickReply": {
         "items": [
             {
                 "type": "action",
                 "action": {
                     "type": "message",
-                    "label": status.Delete[2],
-                    "text": status.Delete[2]
+                    "label": warnings.Delete[1],
+                    "text": warnings.Delete[1]
                 }
             },
             {
                 "type": "action",
                 "action": {
                     "type": "message",
-                    "label": status.Delete[3],
-                    "text": status.Delete[3]
+                    "label": warnings.Delete[0],
+                    "text": warnings.Delete[0]
                 }
             }
         ]
@@ -211,4 +210,4 @@ const quickReplyDelete = {
 
 }
 
-module.exports = { richmenu, datePicker, quickReplyUpdate, quickReplyDelete, questions, status }
+module.exports = { richmenu, datePicker, quickReplyUpdate, quickReplyDelete, questions, status, warnings }

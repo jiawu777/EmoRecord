@@ -1,7 +1,8 @@
 const EmoRecord = require('../models/emo-records')
-const { inputData } = require('../helpers/input-data')
-const { datePicker, quickReplyUpdate, quickReplyDelete, status } = require('../utils/msgtemplates')
+const { datePicker, quickReplyUpdate, quickReplyDelete, status, questions, warnings } = require('../utils/msgtemplates')
 const { pickDate } = require('../helpers/pick-date')
+const { response } = require('express')
+const { inputData } = require('../helpers/input-data')
 
 
 module.exports = {
@@ -9,165 +10,57 @@ module.exports = {
         try {
             const userId = event.source.userId
             const replyToken = event.replyToken;
-            const pickedDateNew = await pickDate(event, client)
             let record = ""
+
+            // 若為訊息回傳，先攔截
+            if (event.type === 'message' && event.message.text !== '新增紀錄') {
+                return await inputData(event, client)
+            }
+
+            const pickedDateNew = await pickDate(event, client)
             // 查詢指定日期紀錄 find record with same date & user
             record = await EmoRecord.findOne({ userId, date: pickedDateNew });
-
             if (!record) {
-
                 // 若因無指定日期故查無紀錄，返回。 if no picked date info, return
                 if (!pickedDateNew) return
-
                 // 若查詢日期無紀錄，則新增紀錄。 if record does not exist, create a new one
-                record = new EmoRecord({ userId, questionIndex: 0, date: pickedDateNew, status: status.Create[1] })
+                record = new EmoRecord({ userId, questionIndex: 0, date: pickedDateNew, status: status[1] })
                 await record.save()
+
+                // 進入問答紀錄 enter Q&A
+                await inputData(event, client)
             } else {
                 // 若查詢日期有紀錄，詢問使用者是否更新紀錄。 if record exist, ask if user want to update or not
                 // 欲更新紀錄，轉到updateRecord函式 if yes, turn to update function
+
                 await client.replyMessage(replyToken, [{ type: 'text', text: `${pickedDateNew}已有紀錄` }, quickReplyUpdate])
             }
-
-            // 問答紀錄
-            // await inputData(event, client, record)
-
         } catch (err) { console.log(err) }
     },
     updateRecord: async function (event, client) {
-        // if user don't want to edit existing record
-        if (event.type === 'message' && event.message.text === status.Update[2]) {
-            record.status = status.Create[0]
-            await record.save()
-            // confirm not update when record exist & quit
-            return await client.replyMessage(replyToken, { type: 'text', text: `取消更新 ${record.date} 紀錄` })
-        } else if (event.type === 'message' && event.message.text === '是') {
-            // reset record
-            selectedDate = record.date
-            await record.deleteOne()
-            record = new EmoRecord({ userId, questionIndex: 0, date: selectedDate, status: status.CreateAndUpdate[1] })
-            await record.save()
-        }
+        const userId = event.source.userId
+        const replyToken = event.replyToken;
+        let record = ""
+
+        const pickedDateUpdate = await pickDate(event, client)
+        // 查詢指定日期紀錄 find record with same date & user
+        record = await EmoRecord.findOne({ userId, date: pickedDateUpdate });
+        if (!pickedDateUpdate) return
+
+        // reset record
+        record.status = status[1]
+        await record.save()
+
+        // 進入問答紀錄 enter Q&A
+        await inputData(event, client)
+        // if (!record) {
+        //     // 若因無指定日期故查無紀錄，返回。 if no picked date info, return
+
+        //     // 若查詢日期無紀錄，則新增紀錄。 if record does not exist, create a new one
+        //     return await client.replyMessage(replyToken, { type: 'text', text: ` ${record.date} 無紀錄` })
+        // }
+
     },
-    // createAndEditRecord: async function (event, client,) {
-    //     try {
-    //         const userId = event.source.userId
-    //         const replyToken = event.replyToken;
-
-    //         // find record with same user & status true (opened)
-    //         // status details are in dialogue
-    //         let record = await EmoRecord.findOne({ userId, status: status.CreateAndUpdate[1] });
-
-    //         // pick date
-    //         let selectedDate = ""
-    //         if (event.type === 'postback' && event.postback.data.split('&')[1] === 'userClick') {
-    //             // set datetime picker
-    //             await client.replyMessage(replyToken, datePicker.new)
-    //         } else if (event.type === 'postback' && event.postback.data.split('&')[1] === 'pickDate') {
-    //             // update selected date 
-    //             selectedDate = event.postback.params.date
-    //         }
-
-
-
-    //         // if user don't want to edit existing record
-    //         if (event.type === 'message' && event.message.text === '否') {
-    //             record.status = status.CreateAndUpdate[0]
-    //             await record.save()
-    //             // confirm not update when record exist & quit
-    //             return await client.replyMessage(replyToken, { type: 'text', text: `取消更新 ${record.date} 紀錄` })
-    //         } else if (event.type === 'message' && event.message.text === '是') {
-    //             // reset record
-    //             selectedDate = record.date
-    //             await record.deleteOne()
-    //             record = new EmoRecord({ userId, questionIndex: 0, date: selectedDate, status: status.CreateAndUpdate[1] })
-    //             await record.save()
-    //         }
-
-
-    //         // if none of record status is true
-    //         if (!record) {
-    //             // see if there is a record on selected date
-    //             record = await EmoRecord.findOne({ userId, date: selectedDate })
-
-    //             if (event.type === 'postback' && event.postback.data.split('&')[1] === 'pickDate') {
-    //                 if (record) {
-    //                     record.status = status.CreateAndUpdate[1]
-    //                     await record.save()
-    //                     await client.replyMessage(replyToken, { type: 'text', text: `${selectedDate} 已有紀錄，是否更新？` })
-    //                 } else {
-    //                     // if there's none record on selected date, create new
-    //                     record = new EmoRecord({ userId, questionIndex: 0, date: selectedDate, status: status.CreateAndUpdate[1] })
-    //                     await record.save()
-    //                 }
-    //             }
-    //         }
-
-
-    //         record = await EmoRecord.findOne({ userId, status: status.CreateAndUpdate[1] })
-    //         if (record) {
-
-
-    //             // repeat questions
-    //             let questionIndex = record.questionIndex
-
-    //             if (event.type === 'message') {
-    //                 // image 處理
-    //                 if (event.message.type == 'image') {
-    //                     const imageId = event.message.id;
-    //                     const downloadUrl = `https://api-data.line.me/v2/bot/message/${imageId}/content`;
-    //                     return downloadImage(downloadUrl)
-    //                         .then(async (imageData) => {
-    //                             // 轉換為 Base64
-    //                             const base64Data = imageData.toString('base64')
-
-    //                             // 上傳 imgur 並存取imgur url
-    //                             const imgurl = await uploadImgur(base64Data)
-    //                             record.answer.image.push(imgurl)
-
-    //                             if (record !== null) {
-    //                                 record.status = status.CreateAndUpdate[0]
-    //                                 if (record.questionIndex === questions.length) record.questionIndex = 0
-    //                                 await record.save()
-    //                             };
-
-    //                             // 已完成回傳答覆
-    //                             if (questionIndex <= questions.length) {
-    //                                 if (record.questionIndex === questions.length) record.questionIndex = 0
-    //                                 await client.replyMessage(replyToken, { type: 'text', text: '所有問題包含圖片皆上傳完成' })
-    //                             }
-    //                         })
-    //                         .catch((error) => {
-    //                             console.error(error);
-    //                         });
-    //                 }
-    //             }
-    //             // 本日未完成跑問題
-    //             if (questionIndex < questions.length) {
-
-    //                 // 向使用者提問
-    //                 await client.replyMessage(replyToken, { type: 'text', text: questions[questionIndex] });
-
-    //                 // 第一次呼叫不存入資料庫
-    //                 if (record.questionIndex !== 0 && event.type === 'message') {
-    //                     record.answer.text.push(event.message.text)
-    //                 }
-    //                 if (record !== null) {
-    //                     record.questionIndex += 1
-    //                     await record.save()
-    //                 };
-
-    //             } else if (record && record.status !== status.CreateAndUpdate[0]) {
-    //                 // turn record status to false restrict editing
-    //                 record.status = status.CreateAndUpdate[0]
-    //                 if (record.questionIndex === questions.length) record.questionIndex = 0
-    //                 record.save()
-    //                 // 已完成回傳答覆
-    //                 await client.replyMessage(replyToken, { type: 'text', text: '所有問題已完成' })
-    //             }
-    //         }
-
-    //     } catch (err) { console.log(err) }
-    // },
     readRecord: async function (event, client) {
         try {
             const userId = event.source.userId

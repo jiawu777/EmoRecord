@@ -1,9 +1,14 @@
+const { status, questions } = require('../utils/msgtemplates')
+const { downloadImage, uploadImgur } = require('./image-helpers')
+const EmoRecord = require('../models/emo-records')
 module.exports = {
-    inputData: async function (event, record) {
+    inputData: async function inputData(event, client) {
+        const userId = event.source.userId
+        const record = await EmoRecord.findOne({ userId, status: status[1] })
         try {
             // 重複問題 repeat questions
             let questionIndex = record.questionIndex
-
+            const replyToken = event.replyToken
             if (event.type === 'message') {
                 // image 處理
                 if (event.message.type == 'image') {
@@ -18,15 +23,11 @@ module.exports = {
                             const imgurl = await uploadImgur(base64Data)
                             record.answer.image.push(imgurl)
 
-                            if (record !== null) {
-                                record.status = status.CreateAndUpdate[0]
-                                if (record.questionIndex === questions.length) record.questionIndex = 0
-                                await record.save()
-                            };
-
                             // 已完成回傳答覆
-                            if (questionIndex <= questions.length) {
-                                if (record.questionIndex === questions.length) record.questionIndex = 0
+                            if (record.questionIndex >= questions.length) {
+                                record.questionIndex = 0
+                                record.status = status[0]
+                                await record.save()
                                 await client.replyMessage(replyToken, { type: 'text', text: '所有問題包含圖片皆上傳完成' })
                             }
                         })
@@ -50,14 +51,14 @@ module.exports = {
                     await record.save()
                 };
 
-            } else if (record && record.status !== status.CreateAndUpdate[0]) {
+            } else if (record && record.status !== status[0]) {
                 // turn record status to false restrict editing
-                record.status = status.CreateAndUpdate[0]
                 if (record.questionIndex === questions.length) record.questionIndex = 0
-                record.save()
+                record.status = status[0]
+                await record.save()
                 // 已完成回傳答覆
                 await client.replyMessage(replyToken, { type: 'text', text: '所有問題已完成' })
             }
-        } catch (err) { console.Console(err) }
+        } catch (err) { console.log(err) }
     }
 }
