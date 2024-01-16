@@ -26,13 +26,14 @@ module.exports = {
                 // 若查詢日期無紀錄，則新增紀錄。 if record does not exist, create a new one
                 record = new EmoRecord({ userId, questionIndex: 0, date: pickedDateNew, status: status[1] })
                 await record.save()
-
                 // 進入問答紀錄 enter Q&A
                 await inputData(event, client)
             } else {
                 // 若查詢日期有紀錄，詢問使用者是否更新紀錄。 if record exist, ask if user want to update or not
                 // 欲更新紀錄，轉到updateRecord函式 if yes, turn to update function
-
+                // 開啟紀錄編輯，若取消編輯再關閉 record switch to editable, so that record can be found.
+                record.status = status[1]
+                record.save()
                 await client.replyMessage(replyToken, [{ type: 'text', text: `${pickedDateNew}已有紀錄` }, quickReplyUpdate])
             }
         } catch (err) { console.log(err) }
@@ -41,25 +42,40 @@ module.exports = {
         const userId = event.source.userId
         const replyToken = event.replyToken;
         let record = ""
+        if (event.type === 'message') {
+            // 使用者新增資料後發現已有資料抉擇是否更新。 User used to create record but found record exist.
+            record = await EmoRecord.findOne({ userId, status: status[1] })
+            if (event.message.text === warnings.Update[0]) {
+                // 若使用者不欲更新資料，資料設回唯讀狀態。 if user don't want to update, switch record status to read only.
+                record.status = status[0]
+                await record.save()
+            } else if (event.message.text === warnings.Update[1]) {
+                // 使用者欲更新資料，資料重置。 If user wants to update, reset record. 
+                record.answer = []
+                await record.save()
+                // 進入問答紀錄 enter Q&A
+                await inputData(event, client)
+            }
+        } else {
+            // 使用者點擊更新資料 User click on update by themselves
+            const pickedDateUpdate = await pickDate(event, client)
+            // 查詢指定日期紀錄 find record with same date & user
+            record = await EmoRecord.findOne({ userId, date: pickedDateUpdate });
+            if (!record) {
+                // 若因無指定日期故查無紀錄，返回。 if no picked date info, return
+                if (!pickedDateUpdate) return
+                // 若查詢日期無紀錄，則新增紀錄。 if record does not exist, create a new one
+                return await client.replyMessage(replyToken, { type: 'text', text: `指定日期${record.date} 無紀錄` })
+            } else {
+                // reset record
+                record.answer = []
+                record.status = status[1]
+                await record.save()
 
-        const pickedDateUpdate = await pickDate(event, client)
-        // 查詢指定日期紀錄 find record with same date & user
-        record = await EmoRecord.findOne({ userId, date: pickedDateUpdate });
-        if (!pickedDateUpdate) return
-
-        // reset record
-        record.status = status[1]
-        await record.save()
-
-        // 進入問答紀錄 enter Q&A
-        await inputData(event, client)
-        // if (!record) {
-        //     // 若因無指定日期故查無紀錄，返回。 if no picked date info, return
-
-        //     // 若查詢日期無紀錄，則新增紀錄。 if record does not exist, create a new one
-        //     return await client.replyMessage(replyToken, { type: 'text', text: ` ${record.date} 無紀錄` })
-        // }
-
+                // 進入問答紀錄 enter Q&A
+                await inputData(event, client)
+            }
+        }
     },
     readRecord: async function (event, client) {
         try {
