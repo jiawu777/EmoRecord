@@ -6,7 +6,7 @@ const questions = [
     '上傳圖片記錄吧!'
 ]
 
-const status = ['readonly', 'editable']
+const status = ['readonly', 'editable', 'deleting']
 
 const warnings = {
     Update: ['取消更新紀錄', '確認更新紀錄', '是否更新資料？'],

@@ -120,33 +120,38 @@ module.exports = {
         try {
             const userId = event.source.userId
             const replyToken = event.replyToken;
-            const record = EmoRecord.findOne({ userId, status: status.Delete[1] })
+            let record = ''
+
+            if (event.type === 'message') {
+                record = await EmoRecord.findOne({ userId, status: status[2] })
+                if (event.message.text === warnings.Delete[1]) {
+                    // 確認刪除，回覆確認刪除訊息。Delete record, reply confirm delete message.
+                    await client.replyMessage(replyToken, { type: 'text', text: `確認刪除${record.date}日期紀錄。` })
+                    await record.deleteOne()
+                } else if (event.message.text === warnings.Delete[0]) {
+                    // 取消刪除，回覆取消刪除訊息。 Cancel deletion, reply cancel delete message.
+                    record.status = status[0]
+                    await record.save()
+                    await client.replyMessage(replyToken, { type: 'text', text: `取消刪除${record.date}日期紀錄。` })
+                }
+            }
 
             if (event.type === 'postback') {
-                if (event.postback.data.split('&')[1] !== 'pickDate') {
-                    // set datetime picker
-                    await client.replyMessage(replyToken, datePicker.delete)
+                const pickedDateDelete = await pickDate(event, client)
+                // 查詢指定日期紀錄 find record with same date & user
+                record = await EmoRecord.findOne({ userId, date: pickedDateDelete });
+                if (!record) {
+                    // 若因無指定日期故查無紀錄，返回。 if no picked date info, return
+                    if (!pickedDateDelete) return
+                    // 若指定日期查無紀錄，回覆查無紀錄訊息。 If no record founded, reply message.
+                    await client.replyMessage(replyToken, { type: 'text', text: `查詢日期 ${pickedDateDelete} 無紀錄` })
                 } else {
-                    const selectedDate = event.postback.params.date
-                    // find record with same date & user
-                    let selectRecord = await EmoRecord.findOne({ userId, date: selectedDate });
-                    if (!selectRecord) {
-                        await client.replyMessage(replyToken, { type: 'text', text: `查詢日期 ${selectedDate} 無紀錄` })
-                    } else {
-                        selectRecord.status = status.Delete[1]
-                        selectRecord.save()
-                        await client.replyMessage(replyToken, [{ type: 'text', text: ` 選擇紀錄日期為 ${selectedDate} ` }, quickReplyDelete])
-                    }
+                    // 改變紀錄狀態為deleting
+                    record.status = status[2]
+                    await record.save()
+                    // 查得紀錄，回傳是否確認刪除訊息。Record exist, return delete confirmation message.
+                    await client.replyMessage(replyToken, [{ type: 'text', text: ` 是否確認刪除 ${pickedDateDelete} 紀錄？` }, quickReplyDelete])
                 }
-            } else if (event.type === 'message' && event.message.text === status.Delete[3]) {
-                // cancel deleting record
-                record.status = status.Delete[0]
-                await record.updateOne()
-                return await client.replyMessage(replyToken, { type: 'text', text: status.Delete[3] })
-            } else if (event.type === 'message' && event.message.text === status.Delete[2]) {
-                // confirm deleting record
-                await client.replyMessage(replyToken, { type: 'text', text: status.Delete[2] })
-                return await record.deleteOne()
             }
         } catch (err) { console.log(err) }
     }
