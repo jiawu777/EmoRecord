@@ -12,7 +12,6 @@ const connect = () => new Promise((resolve, reject) => {
         console.info(`Mongoose Connected!`)
         resolve()
     })
-
     mongoose.connect(process.env.MONGODB_URI)
 })
 

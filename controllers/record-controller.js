@@ -1,7 +1,6 @@
 const EmoRecord = require('../models/emo-records')
 const { datePicker, quickReplyUpdate, quickReplyDelete, status, questions, warnings } = require('../utils/msgtemplates')
 const { pickDate } = require('../helpers/pick-date')
-const { response } = require('express')
 const { inputData } = require('../helpers/input-data')
 
 
@@ -12,26 +11,30 @@ module.exports = {
             const replyToken = event.replyToken;
             let record = ""
 
-            // 若為訊息回傳，先攔截
+            // 若為訊息回傳，先攔截 if reply was message, go to inputData
             if (event.type === 'message' && event.message.text !== '新增紀錄') {
                 return await inputData(event, client)
             }
-
+            // 指定新增紀錄日期 pick create record date
             const pickedDateNew = await pickDate(event, client)
+
             // 查詢指定日期紀錄 find record with same date & user
             record = await EmoRecord.findOne({ userId, date: pickedDateNew });
+
             if (!record) {
                 // 若因無指定日期故查無紀錄，返回。 if no picked date info, return
                 if (!pickedDateNew) return
+
                 // 若查詢日期無紀錄，則新增紀錄。 if record does not exist, create a new one
                 record = new EmoRecord({ userId, questionIndex: 0, date: pickedDateNew, status: status[1] })
                 await record.save()
+
                 // 進入問答紀錄 enter Q&A
                 await inputData(event, client)
             } else {
                 // 若查詢日期有紀錄，詢問使用者是否更新紀錄。 if record exist, ask if user want to update or not
                 // 欲更新紀錄，轉到updateRecord函式 if yes, turn to update function
-                // 開啟紀錄編輯，若取消編輯再關閉 record switch to editable, so that record can be found.
+                // 紀錄狀態改為可編輯 record switch to editable, so that record can be found.
                 record.status = status[1]
                 record.save()
                 await client.replyMessage(replyToken, [{ type: 'text', text: `${pickedDateNew}已有紀錄` }, quickReplyUpdate])
@@ -49,25 +52,31 @@ module.exports = {
                 // 若使用者不欲更新資料，資料設回唯讀狀態。 if user don't want to update, switch record status to read only.
                 record.status = status[0]
                 await record.save()
+
             } else if (event.message.text === warnings.Update[1]) {
                 // 使用者欲更新資料，資料重置。 If user wants to update, reset record. 
                 record.answer = []
                 await record.save()
+
                 // 進入問答紀錄 enter Q&A
                 await inputData(event, client)
             }
+
         } else {
             // 使用者點擊更新資料 User click on update by themselves
+            // 指定更新紀錄日期 Pick date to update record
             const pickedDateUpdate = await pickDate(event, client)
+
             // 查詢指定日期紀錄 find record with same date & user
             record = await EmoRecord.findOne({ userId, date: pickedDateUpdate });
             if (!record) {
                 // 若因無指定日期故查無紀錄，返回。 if no picked date info, return
                 if (!pickedDateUpdate) return
-                // 若查詢日期無紀錄，則新增紀錄。 if record does not exist, create a new one
-                return await client.replyMessage(replyToken, { type: 'text', text: `指定日期${record.date} 無紀錄` })
+
+                // 若查詢日期無紀錄，則回覆查無紀錄訊息。 if record does not exist, return no record exist message.
+                return await client.replyMessage(replyToken, { type: 'text', text: `指定日期${pickedDateUpdate} 無紀錄` })
             } else {
-                // reset record
+                // 重置紀錄 reset record
                 record.answer = []
                 record.status = status[1]
                 await record.save()
@@ -81,37 +90,39 @@ module.exports = {
         try {
             const userId = event.source.userId
             const replyToken = event.replyToken;
-            if (event.postback.data.split('&')[1] !== 'pickDate') {
-                // set datetime picker
-                await client.replyMessage(replyToken, datePicker.read)
+            let record = ''
+            // 指定查詢紀錄日期 Pick date to read record
+            const pickedDateRead = await pickDate(event, client)
+
+            // 查詢指定日期紀錄 find record with same date & user
+            record = await EmoRecord.findOne({ userId, date: pickedDateRead });
+            if (!record) {
+                // 若因無指定日期故查無紀錄，返回。 if no picked date info, return
+                if (!pickedDateRead) return
+
+                // 若查詢日期無紀錄，則回覆查無紀錄訊息。 if record does not exist, return no record exist message.
+                return await client.replyMessage(replyToken, { type: 'text', text: `指定日期${pickedDateRead} 無紀錄` })
             } else {
-                const selectedDate = event.postback.params.date
-                // find record with same date & user
-                let selectRecord = await EmoRecord.findOne({ userId, date: selectedDate });
-                if (!selectRecord) {
-                    await client.replyMessage(replyToken, { type: 'text', text: `查詢日期 ${selectedDate} 無紀錄` })
+                // 顯示紀錄 print record
+                let answers = record.answer.text.join('\n')
+                const images = record.answer.image.join()
+                const replyImg = {
+                    "type": "image",
+                    "originalContentUrl": images,
+                    "previewImageUrl": images,
+                    "animated": true
+                }
+
+                if (images) {
+                    await client.replyMessage(replyToken, [{
+                        type: 'text',
+                        text: `${record.date}\n${answers}
+    ` }, replyImg])
                 } else {
-                    let answers = selectRecord.answer.text.join('\n')
-                    const images = selectRecord.answer.image.join()
-                    const replyImg = {
-                        "type": "image",
-                        "originalContentUrl": images,
-                        "previewImageUrl": images,
-                        "animated": true
-                    }
-
-                    if (images) {
-                        await client.replyMessage(replyToken, [{
-                            type: 'text',
-                            text: `${selectRecord.date}\n${answers}
-                    ` }, replyImg])
-                    } else {
-                        await client.replyMessage(replyToken, {
-                            type: 'text',
-                            text: `${selectRecord.date}\n${answers}
-                    ` })
-                    }
-
+                    await client.replyMessage(replyToken, {
+                        type: 'text',
+                        text: `${record.date}\n${answers}
+    ` })
                 }
             }
         } catch (err) { console.log(err) }

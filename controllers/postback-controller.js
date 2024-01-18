@@ -5,7 +5,7 @@ const { inputData } = require('../helpers/input-data')
 module.exports = {
     handlePostbackEvent: async function (event, client) {
         try {
-            // 使用者點擊RichMenu選項
+            // 使用者點擊RichMenu選項 User interface with richmenu
             if (event.type === 'postback') {
                 let mode = event.postback.data.split('&')[0]
                 if (mode === 'new') {
@@ -21,13 +21,13 @@ module.exports = {
                 if ((event.message.text === "新增紀錄" || event.message.text === "修改紀錄" ||
                     event.message.text === "查詢紀錄" || event.message.text === "刪除紀錄")) { return }
                 if (event.message.text === warnings.Delete[0] || event.message.text === warnings.Delete[1]) {
-                    // 確認是否刪除
+                    // 確認是否刪除 Delete confirmation
                     await deleteRecord(event, client)
                 } else if (event.message.text === warnings.Update[0] || event.message.text === warnings.Update[1]) {
-                    // 確認更新紀錄
+                    // 確認更新紀錄 Update confirmation
                     await updateRecord(event, client)
                 } else {
-                    // 使用者回傳待紀錄訊息
+                    // 使用者回傳待紀錄訊息 User reply message 
                     await inputData(event, client)
                 }
             }
